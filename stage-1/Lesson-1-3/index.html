@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>AI Automation Demo</title>
+</head>
+<body>
+
+  <input id="name" placeholder="Name">
+
+  <br><br>
+
+  <textarea id="message" placeholder="Message"></textarea>
+
+  <br><br>
+
+  <button id="send">Send</button>
+
+  <p id="result"></p>
+
+  <script>
+    const button = document.querySelector('#send');
+
+    button.addEventListener('click', async () => {
+      const name = document.querySelector('#name').value;
+      const message = document.querySelector('#message').value;
+
+      try {
+        const response = await fetch('http://localhost:3000/api/message', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            name: name,
+            message: message
+          })
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+          document.querySelector('#result').innerHTML =
+          `Error: ${data.error}`;
+           return;
+        }
+
+        console.log(data);
+        if (!data.success) {
+          document.querySelector('#result').innerHTML =
+            `Error: ${data.error}`;
+        } else {  
+          document.querySelector('#result').innerHTML =
+            `hello ${data.customer}, your message is: <br> ${data.message}`;
+        }
+      } catch (error) {
+        console.error('Error:', error);
+        document.querySelector('#result').innerHTML =
+          `Error: ${error.message}`;
+      }
+    });
+  </script>
+
+</body>
+</html>

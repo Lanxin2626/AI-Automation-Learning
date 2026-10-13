@@ -1,0 +1,27 @@
+# Local secrets and environment configuration
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+credentials*.json
+secrets*.json
+.npmrc
+
+# Dependencies, editor settings and generated files
+node_modules/
+.vscode/
+.idea/
+.DS_Store
+*.log
+coverage/
+dist/
+
+# Local databases, exports and backups
+*.db
+*.sqlite
+*.sqlite3
+*.dump
+*.bak

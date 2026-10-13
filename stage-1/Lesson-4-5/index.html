@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>AI Automation Demo</title>
+</head>
+<body>
+
+
+  <button id="send">Send</button>
+
+  <p id="result"></p>
+
+  <script>
+    const button = document.querySelector('#send');
+
+    button.addEventListener('click', async () => {
+      try {
+        const response = await fetch('http://localhost:3000/api/user', {
+          method: 'GET'
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+          document.querySelector('#result').innerHTML =
+          `Error: ${data.error}`;
+           return;
+        }
+
+        console.log(data);
+        if (!data.success) {
+          document.querySelector('#result').innerHTML =
+            `Error: ${data.error}`;
+        } else {  
+          document.querySelector('#result').innerHTML =
+            `Name: ${data.name}<br>Email: ${data.email}<br>City: ${data.city}`;
+        }
+      } catch (error) {
+        console.error('Error:', error);
+        document.querySelector('#result').innerHTML =
+          `Error: ${error.message}`;
+      }
+    });
+  </script>
+
+</body>
+</html>

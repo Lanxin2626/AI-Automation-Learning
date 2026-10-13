@@ -1,0 +1,31 @@
+<input id="name" placeholder="Name">
+
+<textarea id="message" placeholder="Message"></textarea>
+
+<button id="send">Send</button>
+
+<script>
+document.querySelector('#send').addEventListener('click', async () => {
+
+  const name = document.querySelector('#name').value;
+  const message = document.querySelector('#message').value;
+
+  const response = await fetch('http://localhost:3000/api/message', {
+    method: 'POST',
+
+    headers: {
+      'Content-Type': 'application/json'
+    },
+
+    body: JSON.stringify({
+      name: name,
+      message: message
+    })
+  });
+
+  const data = await response.json();
+
+  console.log(data);
+
+});
+</script>
