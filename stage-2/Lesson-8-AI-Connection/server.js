@@ -149,8 +149,11 @@ app.get('/api/enquiries', async (req, res) => {
   try {
     const { priority, intent } = req.query;
 
-    const limit = Number(req.query.limit) || 10;
-    const offset = Number(req.query.offset) || 0;
+    const page = Number(req.query.page) || 1;
+    const pageSize = Number(req.query.pageSize) || 10;
+
+    const limit = pageSize;
+    const offset = (page - 1) * pageSize;
 
     let query = 'SELECT * FROM enquiries';
     const values = [];
@@ -182,8 +185,8 @@ app.get('/api/enquiries', async (req, res) => {
 
     res.json({
       success: true,
-      limit,
-      offset,
+      page,
+      pageSize,
       enquiries: result.rows,
     });
 
