@@ -151,11 +151,8 @@ app.get('/api/enquiries', async (req, res) => {
 
     const page = Number(req.query.page) || 1;
     const pageSize = Number(req.query.pageSize) || 10;
-
-    const limit = pageSize;
     const offset = (page - 1) * pageSize;
 
-    let query = 'SELECT * FROM enquiries';
     const values = [];
     const conditions = [];
 
@@ -169,24 +166,49 @@ app.get('/api/enquiries', async (req, res) => {
       conditions.push(`intent = $${values.length}`);
     }
 
+    let whereClause = '';
+
     if (conditions.length > 0) {
-      query += ' WHERE ' + conditions.join(' AND ');
+      whereClause = ' WHERE ' + conditions.join(' AND ');
     }
 
-    query += ' ORDER BY created_at DESC';
+    // 1. 先查总数
+    const countResult = await pool.query(
+      `SELECT COUNT(*) FROM enquiries${whereClause}`,
+      values
+    );
 
-    values.push(limit);
-    query += ` LIMIT $${values.length}`;
+    const total = Number(countResult.rows[0].count);
 
-    values.push(offset);
-    query += ` OFFSET $${values.length}`;
+    // 2. 再查当前页的数据
+    const dataValues = [...values];
 
-    const result = await pool.query(query, values);
+    dataValues.push(pageSize);
+    const limitPlaceholder = `$${dataValues.length}`;
+
+    dataValues.push(offset);
+    const offsetPlaceholder = `$${dataValues.length}`;
+
+    const result = await pool.query(
+      `
+      SELECT *
+      FROM enquiries
+      ${whereClause}
+      ORDER BY created_at DESC
+      LIMIT ${limitPlaceholder}
+      OFFSET ${offsetPlaceholder}
+      `,
+      dataValues
+    );
+
+    const totalPages = Math.ceil(total / pageSize);
 
     res.json({
       success: true,
       page,
       pageSize,
+      total,
+      totalPages,
       enquiries: result.rows,
     });
 
