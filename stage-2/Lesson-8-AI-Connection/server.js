@@ -147,9 +147,29 @@ app.post('/api/ai', async (req, res) => {
 
 app.get('/api/enquiries', async (req, res) => {
   try {
-    const result = await pool.query(
-      'SELECT * FROM enquiries ORDER BY created_at DESC'
-    );
+    const { priority, intent } = req.query;
+
+    let query = 'SELECT * FROM enquiries';
+    const values = [];
+    const conditions = [];
+
+    if (priority) {
+      values.push(priority);
+      conditions.push(`priority = $${values.length}`);
+    }
+
+    if (intent) {
+      values.push(intent);
+      conditions.push(`intent = $${values.length}`);
+    }
+
+    if (conditions.length > 0) {
+      query += ' WHERE ' + conditions.join(' AND ');
+    }
+
+    query += ' ORDER BY created_at DESC';
+
+    const result = await pool.query(query, values);
 
     res.json({
       success: true,
