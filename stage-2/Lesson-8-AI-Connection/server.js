@@ -149,6 +149,9 @@ app.get('/api/enquiries', async (req, res) => {
   try {
     const { priority, intent } = req.query;
 
+    const limit = Number(req.query.limit) || 10;
+    const offset = Number(req.query.offset) || 0;
+
     let query = 'SELECT * FROM enquiries';
     const values = [];
     const conditions = [];
@@ -169,10 +172,18 @@ app.get('/api/enquiries', async (req, res) => {
 
     query += ' ORDER BY created_at DESC';
 
+    values.push(limit);
+    query += ` LIMIT $${values.length}`;
+
+    values.push(offset);
+    query += ` OFFSET $${values.length}`;
+
     const result = await pool.query(query, values);
 
     res.json({
       success: true,
+      limit,
+      offset,
       enquiries: result.rows,
     });
 
