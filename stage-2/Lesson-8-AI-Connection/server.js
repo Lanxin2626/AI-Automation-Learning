@@ -3,8 +3,6 @@ const cors = require('cors');
 const OpenAI = require('openai');
 const { Pool } = require('pg');
 
-
-
 require('dotenv').config();
 
 const pool = new Pool({
@@ -103,7 +101,7 @@ app.post('/api/ai', async (req, res) => {
     }
 
     await pool.query(
-  `
+      `
   INSERT INTO enquiries
   (
     message,
@@ -115,15 +113,8 @@ app.post('/api/ai', async (req, res) => {
   )
   VALUES ($1, $2, $3, $4, $5, $6)
   `,
-  [
-    message,
-    aiResult.intent,
-    aiResult.model,
-    aiResult.priority,
-    assignedTeam,
-    action
-  ]
-);
+      [message, aiResult.intent, aiResult.model, aiResult.priority, assignedTeam, action]
+    );
 
     res.json({
       success: true,
@@ -151,12 +142,7 @@ app.get('/api/enquiries', async (req, res) => {
 
     const validPriorities = ['low', 'medium', 'high'];
 
-    const validIntents = [
-      'test_drive',
-      'purchase',
-      'general_enquiry',
-      'service',
-    ];
+    const validIntents = ['test_drive', 'purchase', 'general_enquiry', 'service'];
 
     if (priority && !validPriorities.includes(priority)) {
       return res.status(400).json({
@@ -183,7 +169,7 @@ app.get('/api/enquiries', async (req, res) => {
       });
     }
 
-    if (pageSize < 1|| pageSize > 100 || !Number.isInteger(pageSize)) {
+    if (pageSize < 1 || pageSize > 100 || !Number.isInteger(pageSize)) {
       return res.status(400).json({
         success: false,
         error: 'Page size must be a positive integer and no greater than 100.',
@@ -210,10 +196,7 @@ app.get('/api/enquiries', async (req, res) => {
     }
 
     // 1. 先查总数
-    const countResult = await pool.query(
-      `SELECT COUNT(*) FROM enquiries${whereClause}`,
-      values
-    );
+    const countResult = await pool.query(`SELECT COUNT(*) FROM enquiries${whereClause}`, values);
 
     const total = Number(countResult.rows[0].count);
 
@@ -248,7 +231,6 @@ app.get('/api/enquiries', async (req, res) => {
       totalPages,
       enquiries: result.rows,
     });
-
   } catch (error) {
     console.error(error);
 
@@ -263,10 +245,7 @@ app.get('/api/enquiries/:id', async (req, res) => {
   const id = req.params.id;
 
   try {
-    const result = await pool.query(
-      'SELECT * FROM enquiries WHERE id = $1',
-      [id]
-    );
+    const result = await pool.query('SELECT * FROM enquiries WHERE id = $1', [id]);
 
     if (result.rows.length === 0) {
       return res.status(404).json({
@@ -279,7 +258,6 @@ app.get('/api/enquiries/:id', async (req, res) => {
       success: true,
       enquiry: result.rows[0],
     });
-
   } catch (error) {
     console.error(error);
 
@@ -294,6 +272,37 @@ app.patch('/api/enquiries/:id', async (req, res) => {
   try {
     const id = req.params.id;
     const { priority, assignedTeam } = req.body;
+
+    const validPriorities = ['low', 'medium', 'high'];
+
+    const validTeams = [
+      'Test Drive Team',
+      'Sales Team',
+      'Customer Service Team',
+      'Service Team',
+      'General Team',
+    ];
+
+    if (priority !== undefined && !validPriorities.includes(priority)) {
+      return res.status(400).json({
+        success: false,
+        error: 'Invalid priority.',
+      });
+    }
+
+    if (assignedTeam !== undefined && !validTeams.includes(assignedTeam)) {
+      return res.status(400).json({
+        success: false,
+        error: 'Invalid assigned team.',
+      });
+    }
+
+    if (priority === undefined && assignedTeam === undefined) {
+      return res.status(400).json({
+        success: false,
+        error: 'No fields provided to update.',
+      });
+    }
 
     const result = await pool.query(
       `
@@ -318,7 +327,6 @@ app.patch('/api/enquiries/:id', async (req, res) => {
       success: true,
       enquiry: result.rows[0],
     });
-
   } catch (error) {
     console.error(error);
 
@@ -353,7 +361,6 @@ app.delete('/api/enquiries/:id', async (req, res) => {
       success: true,
       deletedEnquiry: result.rows[0],
     });
-
   } catch (error) {
     console.error(error);
 
