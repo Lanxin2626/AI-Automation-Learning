@@ -149,9 +149,46 @@ app.get('/api/enquiries', async (req, res) => {
   try {
     const { priority, intent } = req.query;
 
-    const page = Number(req.query.page) || 1;
-    const pageSize = Number(req.query.pageSize) || 10;
+    const validPriorities = ['low', 'medium', 'high'];
+
+    const validIntents = [
+      'test_drive',
+      'purchase',
+      'general_enquiry',
+      'service',
+    ];
+
+    if (priority && !validPriorities.includes(priority)) {
+      return res.status(400).json({
+        success: false,
+        error: 'Invalid priority value.',
+      });
+    }
+
+    if (intent && !validIntents.includes(intent)) {
+      return res.status(400).json({
+        success: false,
+        error: 'Invalid intent value.',
+      });
+    }
+
+    const page = req.query.page === undefined ? 1 : Number(req.query.page);
+    const pageSize = req.query.pageSize === undefined ? 10 : Number(req.query.pageSize);
     const offset = (page - 1) * pageSize;
+
+    if (page < 1 || !Number.isInteger(page)) {
+      return res.status(400).json({
+        success: false,
+        error: 'Page must be a positive integer.',
+      });
+    }
+
+    if (pageSize < 1|| pageSize > 100 || !Number.isInteger(pageSize)) {
+      return res.status(400).json({
+        success: false,
+        error: 'Page size must be a positive integer and no greater than 100.',
+      });
+    }
 
     const values = [];
     const conditions = [];
