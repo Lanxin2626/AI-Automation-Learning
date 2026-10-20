@@ -21,7 +21,7 @@ const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
 
-const updateEnquirySchema = z.object({
+const enquiryQuerySchema = z.object({
   priority: z.enum(['low', 'medium', 'high']).optional(),
 
   assignedTeam: z
@@ -33,6 +33,10 @@ const updateEnquirySchema = z.object({
       'General Team',
     ])
     .optional(),
+
+  page: z.coerce.number().int().positive().default(1),
+
+  pageSize: z.coerce.number().int().min(1).max(100).default(10),
 });
 
 app.use(cors());
@@ -149,43 +153,24 @@ app.post('/api/ai', async (req, res) => {
 
 app.get('/api/enquiries', async (req, res) => {
   try {
-    const { priority, intent } = req.query;
+    const validation = enquiryQuerySchema.safeParse(req.query);
 
-    const validPriorities = ['low', 'medium', 'high'];
-
-    const validIntents = ['test_drive', 'purchase', 'general_enquiry', 'service'];
-
-    if (priority && !validPriorities.includes(priority)) {
+    if (!validation.success) {
       return res.status(400).json({
         success: false,
-        error: 'Invalid priority value.',
+        error: 'Invalid query parameters.',
+        details: validation.error.issues,
       });
     }
 
-    if (intent && !validIntents.includes(intent)) {
-      return res.status(400).json({
-        success: false,
-        error: 'Invalid intent value.',
-      });
-    }
+    const {
+      priority,
+      intent,
+      page,
+      pageSize,
+    } = validation.data;
 
-    const page = req.query.page === undefined ? 1 : Number(req.query.page);
-    const pageSize = req.query.pageSize === undefined ? 10 : Number(req.query.pageSize);
     const offset = (page - 1) * pageSize;
-
-    if (page < 1 || !Number.isInteger(page)) {
-      return res.status(400).json({
-        success: false,
-        error: 'Page must be a positive integer.',
-      });
-    }
-
-    if (pageSize < 1 || pageSize > 100 || !Number.isInteger(pageSize)) {
-      return res.status(400).json({
-        success: false,
-        error: 'Page size must be a positive integer and no greater than 100.',
-      });
-    }
 
     const values = [];
     const conditions = [];
@@ -283,7 +268,7 @@ app.patch('/api/enquiries/:id', async (req, res) => {
   try {
     const id = req.params.id;
 
-    const validation = updateEnquirySchema.safeParse(req.body);
+    const validation = enquiryQuerySchema.safeParse(req.body);
 
     if (!validation.success) {
       return res.status(400).json({
