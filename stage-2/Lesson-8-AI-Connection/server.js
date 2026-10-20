@@ -2,6 +2,7 @@ const express = require('express');
 const cors = require('cors');
 const OpenAI = require('openai');
 const { Pool } = require('pg');
+const { z } = require('zod');
 
 require('dotenv').config();
 
@@ -18,6 +19,20 @@ const PORT = 3000;
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
+});
+
+const updateEnquirySchema = z.object({
+  priority: z.enum(['low', 'medium', 'high']).optional(),
+
+  assignedTeam: z
+    .enum([
+      'Test Drive Team',
+      'Sales Team',
+      'Customer Service Team',
+      'Service Team',
+      'General Team',
+    ])
+    .optional(),
 });
 
 app.use(cors());
@@ -118,13 +133,9 @@ app.post('/api/ai', async (req, res) => {
 
     res.json({
       success: true,
-      reply: {
-        intent: aiResult.intent,
-        model: aiResult.model,
-        priority: aiResult.priority,
-      },
-      assignedTeam: assignedTeam,
-      action: action,
+      reply: aiResult,
+      assignedTeam,
+      action,
     });
   } catch (error) {
     console.error(error);
@@ -271,31 +282,18 @@ app.get('/api/enquiries/:id', async (req, res) => {
 app.patch('/api/enquiries/:id', async (req, res) => {
   try {
     const id = req.params.id;
-    const { priority, assignedTeam } = req.body;
 
-    const validPriorities = ['low', 'medium', 'high'];
+    const validation = updateEnquirySchema.safeParse(req.body);
 
-    const validTeams = [
-      'Test Drive Team',
-      'Sales Team',
-      'Customer Service Team',
-      'Service Team',
-      'General Team',
-    ];
-
-    if (priority !== undefined && !validPriorities.includes(priority)) {
+    if (!validation.success) {
       return res.status(400).json({
         success: false,
-        error: 'Invalid priority.',
+        error: 'Invalid request body.',
+        details: validation.error.issues,
       });
     }
 
-    if (assignedTeam !== undefined && !validTeams.includes(assignedTeam)) {
-      return res.status(400).json({
-        success: false,
-        error: 'Invalid assigned team.',
-      });
-    }
+    const { priority, assignedTeam } = validation.data;
 
     if (priority === undefined && assignedTeam === undefined) {
       return res.status(400).json({
