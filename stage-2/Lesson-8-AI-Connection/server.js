@@ -3,6 +3,7 @@ const cors = require('cors');
 const OpenAI = require('openai');
 const { Pool } = require('pg');
 const { z } = require('zod');
+const { zodTextFormat } = require('openai/helpers/zod');
 
 require('dotenv').config();
 
@@ -24,6 +25,8 @@ const openai = new OpenAI({
 const enquiryQuerySchema = z.object({
   priority: z.enum(['low', 'medium', 'high']).optional(),
 
+  intent: z.enum(['test_drive', 'purchase', 'general_enquiry', 'service']).optional(),
+
   assignedTeam: z
     .enum([
       'Test Drive Team',
@@ -37,6 +40,12 @@ const enquiryQuerySchema = z.object({
   page: z.coerce.number().int().positive().default(1),
 
   pageSize: z.coerce.number().int().min(1).max(100).default(10),
+});
+
+const enquiryAnalysisSchema = z.object({
+  intent: z.enum(['test_drive', 'purchase', 'general_enquiry', 'service']),
+  model: z.string().nullable(),
+  priority: z.enum(['low', 'medium', 'high']),
 });
 
 app.use(cors());
@@ -53,30 +62,35 @@ app.post('/api/ai', async (req, res) => {
       });
     }
 
-    const response = await openai.responses.create({
+    const response = await openai.responses.parse({
       model: 'gpt-5.5',
-      input: `
-        Analyse the following customer enquiry.
 
-        Return ONLY valid JSON in this format:
-
+      input: [
         {
-          "intent": "",
-          "model": "",
-          "priority": ""
-        }
+          role: 'system',
+          content: `
+        Analyse customer enquiries.
 
-        Rules:
-        - intent can be: test_drive, purchase, general_enquiry, service
-        - priority can be: low, medium, high
-        - if no vehicle model is mentioned, use null
+        Determine:
+        - intent
+        - vehicle model
+        - priority
 
-        Customer enquiry:
-        ${message}
+        If no vehicle model is mentioned, use null.
       `,
+        },
+        {
+          role: 'user',
+          content: message,
+        },
+      ],
+
+      text: {
+        format: zodTextFormat(enquiryAnalysisSchema, 'enquiry_analysis'),
+      },
     });
 
-    const aiResult = JSON.parse(response.output_text);
+    const aiResult = response.output_parsed;
     let assignedTeam;
 
     switch (aiResult.intent) {
@@ -163,12 +177,7 @@ app.get('/api/enquiries', async (req, res) => {
       });
     }
 
-    const {
-      priority,
-      intent,
-      page,
-      pageSize,
-    } = validation.data;
+    const { priority, intent, page, pageSize } = validation.data;
 
     const offset = (page - 1) * pageSize;
 
