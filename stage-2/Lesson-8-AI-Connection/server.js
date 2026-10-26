@@ -15,6 +15,10 @@ const pool = new Pool({
   port: process.env.DB_PORT,
 });
 
+const enquiryIdSchema = z.object({
+  id: z.coerce.number().int().positive(),
+});
+
 const app = express();
 const PORT = 3000;
 
@@ -25,7 +29,22 @@ const openai = new OpenAI({
 const enquiryQuerySchema = z.object({
   priority: z.enum(['low', 'medium', 'high']).optional(),
 
-  intent: z.enum(['test_drive', 'purchase', 'general_enquiry', 'service']).optional(),
+  intent: z
+    .enum([
+      'test_drive',
+      'purchase',
+      'general_enquiry',
+      'service',
+    ])
+    .optional(),
+
+  page: z.coerce.number().int().positive().default(1),
+
+  pageSize: z.coerce.number().int().min(1).max(100).default(10),
+});
+
+const updateEnquirySchema = z.object({
+  priority: z.enum(['low', 'medium', 'high']).optional(),
 
   assignedTeam: z
     .enum([
@@ -36,10 +55,6 @@ const enquiryQuerySchema = z.object({
       'General Team',
     ])
     .optional(),
-
-  page: z.coerce.number().int().positive().default(1),
-
-  pageSize: z.coerce.number().int().min(1).max(100).default(10),
 });
 
 const enquiryAnalysisSchema = z.object({
@@ -48,19 +63,34 @@ const enquiryAnalysisSchema = z.object({
   priority: z.enum(['low', 'medium', 'high']),
 });
 
+const aiRequestSchema = z.object({
+  message: z
+    .string()
+    .trim()
+    .min(1, 'Message is required.')
+    .max(2000, 'Message is too long.')
+    .refine(
+      (value) => !/^\d+$/.test(value),
+      'Message cannot contain only numbers.'
+    ),
+});
+
 app.use(cors());
 app.use(express.json());
 
 app.post('/api/ai', async (req, res) => {
   try {
-    const { message } = req.body;
 
-    if (!message) {
+    const validation = aiRequestSchema.safeParse(req.body);
+
+    if (!validation.success) {
       return res.status(400).json({
         success: false,
-        error: 'Message is required.',
+        error: 'Invalid request body.',
+        details: validation.error.issues,
       });
     }
+    const { message } = validation.data;
 
     const response = await openai.responses.parse({
       model: 'gpt-5.5',
@@ -277,7 +307,7 @@ app.patch('/api/enquiries/:id', async (req, res) => {
   try {
     const id = req.params.id;
 
-    const validation = enquiryQuerySchema.safeParse(req.body);
+    const validation = updateEnquirySchema.safeParse(req.body);
 
     if (!validation.success) {
       return res.status(400).json({
