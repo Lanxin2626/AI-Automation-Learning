@@ -195,19 +195,9 @@ app.post('/api/ai', async (req, res) => {
   }
 });
 
-app.get('/api/enquiries', async (req, res) => {
+app.get('/api/enquiries', validateQuery(enquiryQuerySchema), async (req, res) => {
   try {
-    const validation = enquiryQuerySchema.safeParse(req.query);
-
-    if (!validation.success) {
-      return res.status(400).json({
-        success: false,
-        error: 'Invalid query parameters.',
-        details: validation.error.issues,
-      });
-    }
-
-    const { priority, intent, page, pageSize } = validation.data;
+    const { priority, intent, page, pageSize } = req.validatedQuery;
 
     const offset = (page - 1) * pageSize;
 
@@ -302,21 +292,11 @@ app.get('/api/enquiries/:id', validateParams(enquiryIdSchema), async (req, res) 
   }
 });
 
-app.patch('/api/enquiries/:id', validateParams(enquiryIdSchema), async (req, res) => {
+app.patch('/api/enquiries/:id', validateParams(enquiryIdSchema), validateBody(updateEnquirySchema), async (req, res) => {
   try {
     const id = req.validatedParams.id;
 
-    const validation = updateEnquirySchema.safeParse(req.body);
-
-    if (!validation.success) {
-      return res.status(400).json({
-        success: false,
-        error: 'Invalid request body.',
-        details: validation.error.issues,
-      });
-    }
-
-    const { priority, assignedTeam } = validation.data;
+    const { priority, assignedTeam } = req.validatedBody;
 
     if (priority === undefined && assignedTeam === undefined) {
       return res.status(400).json({
@@ -396,6 +376,24 @@ app.listen(PORT, () => {
   console.log(`Server is running on http://localhost:${PORT}`);
 });
 
+function validateQuery(schema) {
+  return (req, res, next) => {
+    const result = schema.safeParse(req.query);
+
+    if (!result.success) {
+      return res.status(400).json({
+        success: false,
+        error: 'Invalid query parameters.',
+        details: result.error.issues,
+      });
+    }
+
+    req.validatedQuery = result.data;
+
+    next();
+  };
+}
+
 function validateParams(schema) {
   return (req, res, next) => {
     const result = schema.safeParse(req.params);
@@ -409,6 +407,24 @@ function validateParams(schema) {
     }
 
     req.validatedParams = result.data;
+
+    next();
+  };
+}
+
+function validateBody(schema) {
+  return (req, res, next) => {
+    const result = schema.safeParse(req.body);
+
+    if (!result.success) {
+      return res.status(400).json({
+        success: false,
+        error: 'Invalid request body.',
+        details: result.error.issues,
+      });
+    }
+
+    req.validatedBody = result.data;
 
     next();
   };
