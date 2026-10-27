@@ -276,19 +276,9 @@ app.get('/api/enquiries', async (req, res) => {
   }
 });
 
-app.get('/api/enquiries/:id', async (req, res) => {
+app.get('/api/enquiries/:id', validateParams(enquiryIdSchema), async (req, res) => {
   try {
-       const validation = enquiryIdSchema.safeParse(req.params);
-
-    if (!validation.success) {
-      return res.status(400).json({
-        success: false,
-        error: 'Invalid enquiry id.',
-        details: validation.error.issues,
-      });
-    }
-    
-    const id = validation.data.id;
+    const id = req.validatedParams.id;
     const result = await pool.query('SELECT * FROM enquiries WHERE id = $1', [id]);
 
     if (result.rows.length === 0) {
@@ -312,19 +302,9 @@ app.get('/api/enquiries/:id', async (req, res) => {
   }
 });
 
-app.patch('/api/enquiries/:id', async (req, res) => {
+app.patch('/api/enquiries/:id', validateParams(enquiryIdSchema), async (req, res) => {
   try {
-    const validationAPIId = enquiryIdSchema.safeParse(req.params);
-
-    if (!validationAPIId.success) {
-      return res.status(400).json({
-        success: false,
-        error: 'Invalid enquiry id.',
-        details: validationAPIId.error.issues,
-      });
-    }
-    
-    const id = validationAPIId.data.id;
+    const id = req.validatedParams.id;
 
     const validation = updateEnquirySchema.safeParse(req.body);
 
@@ -378,19 +358,9 @@ app.patch('/api/enquiries/:id', async (req, res) => {
   }
 });
 
-app.delete('/api/enquiries/:id', async (req, res) => {
+app.delete('/api/enquiries/:id', validateParams(enquiryIdSchema), async (req, res) => {
   try {
-    const validationAPIId = enquiryIdSchema.safeParse(req.params);
-
-    if (!validationAPIId.success) {
-      return res.status(400).json({
-        success: false,
-        error: 'Invalid enquiry id.',
-        details: validationAPIId.error.issues,
-      });
-    }
-    
-    const id = validationAPIId.data.id;
+    const id = req.validatedParams.id;
 
     const result = await pool.query(
       `
@@ -425,3 +395,21 @@ app.delete('/api/enquiries/:id', async (req, res) => {
 app.listen(PORT, () => {
   console.log(`Server is running on http://localhost:${PORT}`);
 });
+
+function validateParams(schema) {
+  return (req, res, next) => {
+    const result = schema.safeParse(req.params);
+
+    if (!result.success) {
+      return res.status(400).json({
+        success: false,
+        error: 'Invalid route parameters.',
+        details: result.error.issues,
+      });
+    }
+
+    req.validatedParams = result.data;
+
+    next();
+  };
+}
